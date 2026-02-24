@@ -262,12 +262,19 @@ const ProductForm = () => {
 
             if (response.ok) {
                 const data = await response.json();
+                console.log("Image uploaded! Server returned:", data);
 
                 setUiVariants(prev => {
                     const newVariants = [...prev];
-                    const currentMedia = [...newVariants[index].media];
+                    // Create a deep copy of the specific variant we are modifying!
+                    const targetVariant = { ...newVariants[index] };
+                    const currentMedia = [...targetVariant.media];
+
                     currentMedia.push({ url: data.url, type: 'image' });
-                    newVariants[index].media = currentMedia;
+                    targetVariant.media = currentMedia;
+                    newVariants[index] = targetVariant;
+
+                    console.log("Updated UI variants for media:", targetVariant.media);
                     return newVariants;
                 });
 
@@ -288,9 +295,13 @@ const ProductForm = () => {
     const removeVariantImage = (variantIndex: number, mediaIndex: number) => {
         setUiVariants(prev => {
             const newVariants = [...prev];
-            const currentMedia = [...newVariants[variantIndex].media];
+            const targetVariant = { ...newVariants[variantIndex] };
+            const currentMedia = [...targetVariant.media];
+
             currentMedia.splice(mediaIndex, 1);
-            newVariants[variantIndex].media = currentMedia;
+            targetVariant.media = currentMedia;
+            newVariants[variantIndex] = targetVariant;
+
             return newVariants;
         });
     }
