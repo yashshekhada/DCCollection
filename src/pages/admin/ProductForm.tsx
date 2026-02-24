@@ -479,11 +479,11 @@ const ProductForm = () => {
                                                         <span className="text-xs text-muted-foreground shrink-0">+₹</span>
                                                         <Input
                                                             type="number"
-                                                            step="0.01"
-                                                            className="h-8 text-sm px-2"
-                                                            placeholder="0.00"
+                                                            step="1"
+                                                            className="h-8 text-sm px-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                            placeholder="0"
                                                             value={sizeObj.extra_price}
-                                                            onChange={(e) => handleExtraPriceChange(index, sizeIndex, parseFloat(e.target.value) || 0)}
+                                                            onChange={(e) => handleExtraPriceChange(index, sizeIndex, parseInt(e.target.value) || 0)}
                                                         />
                                                     </div>
                                                 )}
