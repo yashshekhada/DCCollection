@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Trash2, Plus, Image as ImageIcon } from "lucide-react";
+import { Trash2, Plus, Image as ImageIcon, Pencil, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getImageUrl } from "@/lib/utils";
 
@@ -19,6 +19,7 @@ const CategoryList = () => {
     const [newCategoryName, setNewCategoryName] = useState("");
     const [uploadingImage, setUploadingImage] = useState(false);
     const [newCategoryImage, setNewCategoryImage] = useState<string | null>(null);
+    const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null);
 
     useEffect(() => {
         fetchCategories();
@@ -61,7 +62,7 @@ const CategoryList = () => {
         }
     };
 
-    const handleCreate = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newCategoryName.trim()) {
             toast.error("Category name is required");
@@ -69,24 +70,43 @@ const CategoryList = () => {
         }
 
         try {
-            const res = await fetch("https://thedeepcollection.com/api/categories", {
-                method: "POST",
+            const url = editingCategoryId
+                ? `https://thedeepcollection.com/api/categories/${editingCategoryId}`
+                : "https://thedeepcollection.com/api/categories";
+            const method = editingCategoryId ? "PUT" : "POST";
+
+            const res = await fetch(url, {
+                method,
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ name: newCategoryName.trim(), image_url: newCategoryImage }),
             });
 
             if (!res.ok) {
                 const data = await res.json();
-                throw new Error(data.error || "Failed to create category");
+                throw new Error(data.error || "Failed to save category");
             }
 
-            toast.success("Category created successfully");
+            toast.success(editingCategoryId ? "Category updated successfully" : "Category created successfully");
             setNewCategoryName("");
             setNewCategoryImage(null);
+            setEditingCategoryId(null);
             fetchCategories();
         } catch (error: any) {
             toast.error(error.message);
         }
+    };
+
+    const handleEdit = (category: Category) => {
+        setEditingCategoryId(category.id);
+        setNewCategoryName(category.name);
+        setNewCategoryImage(category.image_url);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
+    const handleCancelEdit = () => {
+        setEditingCategoryId(null);
+        setNewCategoryName("");
+        setNewCategoryImage(null);
     };
 
     const handleDelete = async (id: number) => {
@@ -116,10 +136,10 @@ const CategoryList = () => {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Add New Category</CardTitle>
+                    <CardTitle>{editingCategoryId ? "Edit Category" : "Add New Category"}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <form onSubmit={handleCreate} className="flex gap-4 items-end">
+                    <form onSubmit={handleSubmit} className="flex gap-4 items-end">
                         <div className="flex-1 space-y-2">
                             <label className="text-sm font-medium">Category Name</label>
                             <Input
@@ -153,10 +173,18 @@ const CategoryList = () => {
                             </div>
                         </div>
 
-                        <Button type="submit">
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add Category
-                        </Button>
+                        <div className="flex gap-2">
+                            <Button type="submit">
+                                {editingCategoryId ? <Pencil className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
+                                {editingCategoryId ? "Update Category" : "Add Category"}
+                            </Button>
+                            {editingCategoryId && (
+                                <Button type="button" variant="outline" onClick={handleCancelEdit}>
+                                    <X className="mr-2 h-4 w-4" />
+                                    Cancel
+                                </Button>
+                            )}
+                        </div>
                     </form>
                 </CardContent>
             </Card>
@@ -187,14 +215,23 @@ const CategoryList = () => {
                                     </TableCell>
                                     <TableCell className="font-medium">{category.name}</TableCell>
                                     <TableCell className="text-right">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => handleDelete(category.id)}
-                                            className="text-red-500 hover:text-red-700"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
+                                        <div className="flex justify-end gap-2">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => handleEdit(category)}
+                                            >
+                                                <Pencil className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => handleDelete(category.id)}
+                                                className="text-red-500 hover:text-red-700"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             ))}

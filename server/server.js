@@ -56,6 +56,14 @@ app.post('/api/categories', (req, res) => {
     });
 });
 
+app.put('/api/categories/:id', (req, res) => {
+    const { name, image_url } = req.body;
+    db.run("UPDATE categories SET name = ?, image_url = ? WHERE id = ?", [name, image_url, req.params.id], function (err) {
+        if (err) return res.status(400).json({ error: err.message });
+        res.json({ message: "updated", id: req.params.id, name, image_url });
+    });
+});
+
 app.delete('/api/categories/:id', (req, res) => {
     db.run("DELETE FROM categories WHERE id = ?", [req.params.id], function (err) {
         if (err) return res.status(400).json({ error: err.message });

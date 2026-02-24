@@ -75,9 +75,18 @@ const ProductForm = () => {
                                 color_name: v.color_name,
                                 color_hex: v.color_hex,
                                 sizes: SIZES.map(s => ({ size: s, enabled: false, extra_price: 0 })),
-                                media: v.media || []
+                                media: [...(v.media || [])]
                             };
                             grouped.push(group);
+                        } else {
+                            // Merge media if other sizes for the same color have different images
+                            if (v.media && v.media.length > 0) {
+                                v.media.forEach((m: any) => {
+                                    if (!group!.media.some(existing => existing.url === m.url)) {
+                                        group!.media.push(m);
+                                    }
+                                });
+                            }
                         }
                         if (v.size) {
                             const sizeObj = group.sizes.find(s => s.size === v.size);
@@ -478,12 +487,15 @@ const ProductForm = () => {
                                                     <div className="flex items-center gap-2 mt-1">
                                                         <span className="text-xs text-muted-foreground shrink-0">+₹</span>
                                                         <Input
-                                                            type="number"
-                                                            step="1"
-                                                            className="h-8 text-sm px-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                            type="text"
+                                                            inputMode="numeric"
+                                                            className="h-8 text-sm px-2"
                                                             placeholder="0"
-                                                            value={sizeObj.extra_price}
-                                                            onChange={(e) => handleExtraPriceChange(index, sizeIndex, parseInt(e.target.value) || 0)}
+                                                            value={sizeObj.extra_price === 0 ? '' : sizeObj.extra_price}
+                                                            onChange={(e) => {
+                                                                const val = e.target.value.replace(/[^0-9]/g, '');
+                                                                handleExtraPriceChange(index, sizeIndex, val ? parseInt(val, 10) : 0);
+                                                            }}
                                                         />
                                                     </div>
                                                 )}
