@@ -46,7 +46,7 @@ const HeroSection = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("http://localhost:3000/api/banners")
+    fetch("/api/banners")
       .then((res) => res.json())
       .then((data) => {
         setBanners(data);

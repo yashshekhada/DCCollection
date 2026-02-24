@@ -7,7 +7,7 @@ const NewArrivals = () => {
   const [products, setProducts] = useState<Product[]>([]);
 
   useEffect(() => {
-    fetch("http://localhost:3000/api/products")
+    fetch("/api/products")
       .then((res) => res.json())
       .then((data) => setProducts(data.slice(0, 3))) // Show top 3
       .catch((err) => console.error("Error fetching products:", err));

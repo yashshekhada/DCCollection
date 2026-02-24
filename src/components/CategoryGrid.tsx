@@ -15,7 +15,7 @@ const CategoryGrid = () => {
   const [categories, setCategories] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch("http://localhost:3000/api/categories")
+    fetch("/api/categories")
       .then((res) => res.json())
       .then((data) => {
         if (data && data.length > 0) {

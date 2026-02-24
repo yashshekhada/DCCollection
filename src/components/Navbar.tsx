@@ -11,7 +11,7 @@ const Navbar = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch("http://localhost:3000/api/categories")
+    fetch("/api/categories")
       .then(res => res.json())
       .then(data => setCategories(data))
       .catch(err => console.error(err));

@@ -12,7 +12,7 @@ export const getImageUrl = (url: string | null | undefined) => {
   if (url.startsWith('data:')) return url;
 
   // Otherwise, it's a relative path stored in the DB, prepend the backend URL
-  const baseUrl = 'http://localhost:3000';
+  const baseUrl = '';
 
   // Clean up any double slashes
   const cleanUrl = url.startsWith('/') ? url : `/${url}`;
