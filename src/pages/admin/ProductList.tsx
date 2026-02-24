@@ -37,7 +37,7 @@ const ProductList = () => {
         if (!confirm("Are you sure you want to delete this product?")) return;
 
         try {
-            const response = await fetch(`/api/products/${id}`, {
+            const response = await fetch(`http://localhost:3000/api/products/${id}`, {
                 method: "DELETE",
             });
 

@@ -93,7 +93,7 @@ const CategoryList = () => {
         if (!window.confirm("Are you sure you want to delete this category?")) return;
 
         try {
-            const res = await fetch(`/api/categories/${id}`, {
+            const res = await fetch(`http://localhost:3000/api/categories/${id}`, {
                 method: "DELETE",
             });
 

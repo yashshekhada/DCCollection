@@ -59,7 +59,7 @@ const Shop = () => {
     useEffect(() => {
         // Fetch Products based on filters
         setLoading(true);
-        let url = "/api/products?";
+        let url = "http://localhost:3000/api/products?";
         const params = new URLSearchParams();
 
         if (activeCategory !== "All") params.append("category", activeCategory);

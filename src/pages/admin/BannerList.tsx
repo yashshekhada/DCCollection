@@ -105,7 +105,7 @@ const BannerList = () => {
         if (!window.confirm("Are you sure you want to delete this banner?")) return;
 
         try {
-            const res = await fetch(`/api/banners/${id}`, {
+            const res = await fetch(`http://localhost:3000/api/banners/${id}`, {
                 method: "DELETE",
             });
 

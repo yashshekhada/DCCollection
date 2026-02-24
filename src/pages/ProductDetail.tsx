@@ -20,7 +20,7 @@ const ProductDetail = () => {
     const [activeMediaIndex, setActiveMediaIndex] = useState(0);
 
     useEffect(() => {
-        fetch(`/api/products/${id}`)
+        fetch(`http://localhost:3000/api/products/${id}`)
             .then(res => res.json())
             .then(data => {
                 setProduct(data);

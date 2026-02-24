@@ -46,7 +46,7 @@ const ProductForm = () => {
 
     const fetchProductDetails = async () => {
         try {
-            const res = await fetch(`/api/products/${id}`);
+            const res = await fetch(`http://localhost:3000/api/products/${id}`);
             if (res.ok) {
                 const data = await res.json();
                 setFormData(data);

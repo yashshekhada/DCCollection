@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently \"vite\" \"npm run server\"",
+    "start": "node server/server.js",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
