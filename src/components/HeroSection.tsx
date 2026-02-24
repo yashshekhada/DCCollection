@@ -46,7 +46,7 @@ const HeroSection = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/banners")
+    fetch("https://thedeepcollection.com/api/banners")
       .then((res) => res.json())
       .then((data) => {
         setBanners(data);

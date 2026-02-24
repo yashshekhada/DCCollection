@@ -20,7 +20,7 @@ const ProductDetail = () => {
     const [activeMediaIndex, setActiveMediaIndex] = useState(0);
 
     useEffect(() => {
-        fetch(`http://localhost:3000/api/products/${id}`)
+        fetch(`https://thedeepcollection.com/api/products/${id}`)
             .then(res => res.json())
             .then(data => {
                 setProduct(data);

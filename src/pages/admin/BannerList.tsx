@@ -31,7 +31,7 @@ const BannerList = () => {
 
     const fetchBanners = async () => {
         try {
-            const res = await fetch("/api/banners");
+            const res = await fetch("https://thedeepcollection.com/api/banners");
             const data = await res.json();
             setBanners(data);
         } catch (error) {
@@ -50,7 +50,7 @@ const BannerList = () => {
         formData.append("file", file);
 
         try {
-            const res = await fetch("/api/upload", {
+            const res = await fetch("https://thedeepcollection.com/api/upload", {
                 method: "POST",
                 body: formData,
             });
@@ -74,7 +74,7 @@ const BannerList = () => {
         }
 
         try {
-            const res = await fetch("/api/banners", {
+            const res = await fetch("https://thedeepcollection.com/api/banners", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -105,7 +105,7 @@ const BannerList = () => {
         if (!window.confirm("Are you sure you want to delete this banner?")) return;
 
         try {
-            const res = await fetch(`http://localhost:3000/api/banners/${id}`, {
+            const res = await fetch(`https://thedeepcollection.com/api/banners/${id}`, {
                 method: "DELETE",
             });
 

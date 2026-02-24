@@ -11,7 +11,7 @@ const Navbar = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch("/api/categories")
+    fetch("https://thedeepcollection.com/api/categories")
       .then(res => res.json())
       .then(data => setCategories(data))
       .catch(err => console.error(err));

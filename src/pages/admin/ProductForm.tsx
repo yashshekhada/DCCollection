@@ -46,7 +46,7 @@ const ProductForm = () => {
 
     const fetchProductDetails = async () => {
         try {
-            const res = await fetch(`http://localhost:3000/api/products/${id}`);
+            const res = await fetch(`https://thedeepcollection.com/api/products/${id}`);
             if (res.ok) {
                 const data = await res.json();
                 setFormData(data);
@@ -59,7 +59,7 @@ const ProductForm = () => {
 
     const fetchCategories = async () => {
         try {
-            const response = await fetch("/api/categories");
+            const response = await fetch("https://thedeepcollection.com/api/categories");
             if (response.ok) {
                 const data = await response.json();
                 setCategories(data);
@@ -90,7 +90,7 @@ const ProductForm = () => {
 
         setCreatingCategory(true);
         try {
-            const response = await fetch("/api/categories", {
+            const response = await fetch("https://thedeepcollection.com/api/categories", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ name: newCategoryName }),
@@ -191,7 +191,7 @@ const ProductForm = () => {
         uploadData.append("file", file); // multer uses 'file' typically
 
         try {
-            const response = await fetch("/api/upload", {
+            const response = await fetch("https://thedeepcollection.com/api/upload", {
                 method: "POST",
                 body: uploadData,
             });

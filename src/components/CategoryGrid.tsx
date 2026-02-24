@@ -15,7 +15,7 @@ const CategoryGrid = () => {
   const [categories, setCategories] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch("/api/categories")
+    fetch("https://thedeepcollection.com/api/categories")
       .then((res) => res.json())
       .then((data) => {
         if (data && data.length > 0) {

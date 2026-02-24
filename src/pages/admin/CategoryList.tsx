@@ -26,7 +26,7 @@ const CategoryList = () => {
 
     const fetchCategories = async () => {
         try {
-            const res = await fetch("/api/categories");
+            const res = await fetch("https://thedeepcollection.com/api/categories");
             const data = await res.json();
             setCategories(data);
         } catch (error) {
@@ -45,7 +45,7 @@ const CategoryList = () => {
         formData.append("file", file);
 
         try {
-            const res = await fetch("/api/upload", {
+            const res = await fetch("https://thedeepcollection.com/api/upload", {
                 method: "POST",
                 body: formData,
             });
@@ -69,7 +69,7 @@ const CategoryList = () => {
         }
 
         try {
-            const res = await fetch("/api/categories", {
+            const res = await fetch("https://thedeepcollection.com/api/categories", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ name: newCategoryName.trim(), image_url: newCategoryImage }),
@@ -93,7 +93,7 @@ const CategoryList = () => {
         if (!window.confirm("Are you sure you want to delete this category?")) return;
 
         try {
-            const res = await fetch(`http://localhost:3000/api/categories/${id}`, {
+            const res = await fetch(`https://thedeepcollection.com/api/categories/${id}`, {
                 method: "DELETE",
             });
 

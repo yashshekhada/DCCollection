@@ -44,13 +44,13 @@ const Shop = () => {
 
     useEffect(() => {
         // Fetch Categories
-        fetch("/api/categories")
+        fetch("https://thedeepcollection.com/api/categories")
             .then(res => res.json())
             .then(data => setCategories(data))
             .catch(err => console.error(err));
 
         // Fetch Colors
-        fetch("/api/colors")
+        fetch("https://thedeepcollection.com/api/colors")
             .then(res => res.json())
             .then(data => setColors(data))
             .catch(err => console.error(err));
@@ -59,7 +59,7 @@ const Shop = () => {
     useEffect(() => {
         // Fetch Products based on filters
         setLoading(true);
-        let url = "http://localhost:3000/api/products?";
+        let url = "/api/products?";
         const params = new URLSearchParams();
 
         if (activeCategory !== "All") params.append("category", activeCategory);
