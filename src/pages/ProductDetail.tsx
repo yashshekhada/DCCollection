@@ -70,8 +70,13 @@ const ProductDetail = () => {
     // Available sizes for currently selected color
     const availableSizes = availableVariantsForColor.map(v => v.size).filter(Boolean) as string[];
 
-    const displayMedia = (currentVariant?.media && currentVariant.media.length > 0)
-        ? currentVariant.media
+    // Collect all unique media for the selected color, regardless of size
+    const allMediaForColor = availableVariantsForColor
+        .flatMap(v => v.media || [])
+        .filter((m, index, self) => self.findIndex(t => t.url === m.url) === index);
+
+    const displayMedia = allMediaForColor.length > 0
+        ? allMediaForColor
         : product.image_url ? [{ url: getImageUrl(product.image_url), type: 'image' }] : [];
 
     const activeMedia = displayMedia[activeMediaIndex];

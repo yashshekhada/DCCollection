@@ -49,7 +49,7 @@ const CategoryGrid = () => {
             return (
               <motion.a
                 key={cat.id || cat.name}
-                href={`/shop`}
+                href={`/shop?category=${encodeURIComponent(cat.name)}`}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
