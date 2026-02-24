@@ -244,7 +244,8 @@ const distPath = path.join(__dirname, '../dist');
 app.use(express.static(distPath));
 
 // Catch-all route to serve index.html for React Router (SPA)
-app.get(/.*/, (req, res) => {
+// Ignore /api routes so they return 404/JSON instead of the HTML file
+app.get(/^(?!\/api).+/, (req, res) => {
     res.sendFile(path.join(distPath, 'index.html'));
 });
 
