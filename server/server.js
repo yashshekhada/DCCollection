@@ -142,6 +142,7 @@ app.post('/api/products', (req, res) => {
     const { name, description, price, design_code, is_on_sale, sale_price, category, stock, variants, image_url } = req.body;
     const sql = 'INSERT INTO products (name, description, price, image_url, category, stock, design_code, is_on_sale, sale_price) VALUES (?,?,?,?,?,?,?,?,?)';
 
+    console.log("Saving variants payload POST:", JSON.stringify(variants, null, 2));
     // Pick the first media URL as main image_url if not provided
     let mainImage = image_url;
     if (!mainImage && variants && variants.length > 0 && variants[0].media && variants[0].media.length > 0) {
@@ -175,6 +176,7 @@ app.put('/api/products/:id', (req, res) => {
     const { id } = req.params;
     const { name, description, price, design_code, is_on_sale, sale_price, category, stock, variants, image_url } = req.body;
 
+    console.log("Saving variants payload PUT:", JSON.stringify(variants, null, 2));
     let mainImage = image_url;
     if (!mainImage && variants && variants.length > 0 && variants[0].media && variants[0].media.length > 0) {
         mainImage = variants[0].media.find(m => m.type === 'image')?.url || null;

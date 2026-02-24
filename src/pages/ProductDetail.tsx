@@ -79,7 +79,7 @@ const ProductDetail = () => {
         ? allMediaForColor
         : product.image_url ? [{ url: getImageUrl(product.image_url), type: 'image' }] : [];
 
-    const activeMedia = displayMedia[activeMediaIndex];
+    const activeMedia = displayMedia[activeMediaIndex] || displayMedia[0];
 
     // Calculate final price based on selected size's extra price
     const basePrice = Number(product.is_on_sale && product.sale_price ? product.sale_price : product.price);
@@ -229,18 +229,18 @@ const ProductDetail = () => {
                                     {SIZES.map(size => {
                                         const isAvailable = availableSizes.includes(size);
                                         const isSelected = selectedSize === size;
-                                        if (size === "N/A" && !isAvailable) return null; // Don't show N/A button unless it's available
+
+                                        // Hide N/A if it isn't available. Hide other sizes completely if they aren't available for this color.
+                                        if (!isAvailable) return null;
+
                                         return (
                                             <button
                                                 key={size}
-                                                disabled={!isAvailable}
                                                 onClick={() => isAvailable && setSelectedSize(size)}
                                                 className={`py-3 rounded-md text-sm font-medium transition-all border
                                                     ${isSelected
                                                         ? 'bg-foreground text-background border-foreground shadow-md'
-                                                        : isAvailable
-                                                            ? 'bg-transparent text-foreground border-border hover:border-foreground/50'
-                                                            : 'bg-muted/50 text-muted-foreground border-transparent opacity-50 cursor-not-allowed'
+                                                        : 'bg-transparent text-foreground border-border hover:border-foreground/50'
                                                     }
                                                 `}
                                             >

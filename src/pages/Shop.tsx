@@ -80,6 +80,13 @@ const Shop = () => {
 
     const updateParam = (key: string, value: string) => {
         const newParams = new URLSearchParams(searchParams);
+
+        // If we are changing the category, clear other filters
+        if (key === "category") {
+            newParams.delete("search");
+            newParams.delete("color");
+        }
+
         if (value === "All" || value === "") {
             newParams.delete(key);
         } else {

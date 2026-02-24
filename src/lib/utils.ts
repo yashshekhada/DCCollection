@@ -7,14 +7,15 @@ export function cn(...inputs: ClassValue[]) {
 
 export const getImageUrl = (url: string | null | undefined) => {
   if (!url) return '';
-  // If it's a full URL (including the backend server URL from /api/upload), just return it
+  // If it already has the production domain, return it
+  if (url.startsWith('http://thedeepcollection.com') || url.startsWith('https://thedeepcollection.com')) return url;
+
+  // If it's another domain or data URI, return it
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
   if (url.startsWith('data:')) return url;
 
-  // Otherwise, it's a relative path stored in the DB, prepend the backend URL
-  const baseUrl = '';
-
-  // Clean up any double slashes
+  // Otherwise, it's a relative path (like /uploads/...), prepend the live domain
+  const baseUrl = 'https://thedeepcollection.com';
   const cleanUrl = url.startsWith('/') ? url : `/${url}`;
   return `${baseUrl}${cleanUrl}`;
 };
