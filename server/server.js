@@ -42,7 +42,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 // Categories
 // =======================
 app.get('/api/categories', (req, res) => {
-    db.all("SELECT * FROM categories", [], (err, rows) => {
+    db.all("SELECT * FROM categories ORDER BY name ASC", [], (err, rows) => {
         if (err) return res.status(400).json({ error: err.message });
         res.json(rows);
     });
@@ -91,11 +91,17 @@ app.get('/api/colors', (req, res) => {
 // =======================
 app.get('/api/products', (req, res) => {
     const { search, category, color } = req.query;
-    let sql = "SELECT DISTINCT p.* FROM products p";
-    if (color) sql += " LEFT JOIN product_variants v ON p.id = v.product_id";
+    let sql = "SELECT p.id, p.name, p.description, p.price, p.image_url, p.category, p.created_at, p.design_code, p.is_on_sale, p.sale_price FROM products p";
+    if (color) {
+        sql = "SELECT DISTINCT p.id, p.name, p.description, p.price, COALESCE((SELECT url FROM product_variant_media m JOIN product_variants pv ON pv.id = m.variant_id WHERE pv.product_id = p.id AND pv.color_name = ? AND m.type = 'image' LIMIT 1), p.image_url) as image_url, p.category, p.created_at, p.design_code, p.is_on_sale, p.sale_price FROM products p JOIN product_variants v ON p.id = v.product_id";
+    }
 
     let conditions = [];
     let params = [];
+
+    if (color) {
+        params.push(color); // For the subquery
+    }
 
     if (category) {
         conditions.push("p.category = ?");
@@ -114,9 +120,34 @@ app.get('/api/products', (req, res) => {
     if (conditions.length > 0) sql += " WHERE " + conditions.join(" AND ");
     sql += " ORDER BY p.created_at DESC";
 
-    db.all(sql, params, (err, rows) => {
+    db.all(sql, params, (err, products) => {
         if (err) return res.status(400).json({ error: err.message });
-        res.json(rows);
+        if (products.length === 0) return res.json([]);
+
+        let productsProcessed = 0;
+        products.forEach(product => {
+            db.all("SELECT * FROM product_variants WHERE product_id = ?", [product.id], (err, variants) => {
+                if (err || variants.length === 0) {
+                    product.variants = [];
+                    productsProcessed++;
+                    if (productsProcessed === products.length) res.json(products);
+                    return;
+                }
+
+                let variantsProcessed = 0;
+                variants.forEach(v => {
+                    db.all("SELECT * FROM product_variant_media WHERE variant_id = ?", [v.id], (err, media) => {
+                        v.media = media || [];
+                        variantsProcessed++;
+                        if (variantsProcessed === variants.length) {
+                            product.variants = variants;
+                            productsProcessed++;
+                            if (productsProcessed === products.length) res.json(products);
+                        }
+                    });
+                });
+            });
+        });
     });
 });
 
@@ -147,8 +178,8 @@ app.get('/api/products/:id', (req, res) => {
 });
 
 app.post('/api/products', (req, res) => {
-    const { name, description, price, design_code, is_on_sale, sale_price, category, stock, variants, image_url } = req.body;
-    const sql = 'INSERT INTO products (name, description, price, image_url, category, stock, design_code, is_on_sale, sale_price) VALUES (?,?,?,?,?,?,?,?,?)';
+    const { name, description, price, design_code, is_on_sale, sale_price, category, variants, image_url } = req.body;
+    const sql = 'INSERT INTO products (name, description, price, image_url, category, design_code, is_on_sale, sale_price) VALUES (?,?,?,?,?,?,?,?)';
 
     console.log("Saving variants payload POST:", JSON.stringify(variants, null, 2));
     // Pick the first media URL as main image_url if not provided
@@ -157,7 +188,7 @@ app.post('/api/products', (req, res) => {
         mainImage = variants[0].media.find(m => m.type === 'image')?.url || null;
     }
 
-    db.run(sql, [name, description, price, mainImage, category, stock, design_code, is_on_sale ? 1 : 0, sale_price], function (err) {
+    db.run(sql, [name, description, price, mainImage, category, design_code, is_on_sale ? 1 : 0, sale_price], function (err) {
         if (err) return res.status(400).json({ error: err.message });
         const productId = this.lastID;
 
@@ -182,7 +213,7 @@ app.post('/api/products', (req, res) => {
 
 app.put('/api/products/:id', (req, res) => {
     const { id } = req.params;
-    const { name, description, price, design_code, is_on_sale, sale_price, category, stock, variants, image_url } = req.body;
+    const { name, description, price, design_code, is_on_sale, sale_price, category, variants, image_url } = req.body;
 
     console.log("Saving variants payload PUT:", JSON.stringify(variants, null, 2));
     let mainImage = image_url;
@@ -190,8 +221,8 @@ app.put('/api/products/:id', (req, res) => {
         mainImage = variants[0].media.find(m => m.type === 'image')?.url || null;
     }
 
-    const sql = 'UPDATE products SET name=?, description=?, price=?, image_url=?, category=?, stock=?, design_code=?, is_on_sale=?, sale_price=? WHERE id=?';
-    db.run(sql, [name, description, price, mainImage, category, stock, design_code, is_on_sale ? 1 : 0, sale_price, id], function (err) {
+    const sql = 'UPDATE products SET name=?, description=?, price=?, image_url=?, category=?, design_code=?, is_on_sale=?, sale_price=? WHERE id=?';
+    db.run(sql, [name, description, price, mainImage, category, design_code, is_on_sale ? 1 : 0, sale_price, id], function (err) {
         if (err) return res.status(400).json({ error: err.message });
 
         db.run("DELETE FROM product_variants WHERE product_id = ?", [id], (err) => {
@@ -244,6 +275,14 @@ app.delete('/api/banners/:id', (req, res) => {
     db.run("DELETE FROM banners WHERE id = ?", [req.params.id], function (err) {
         if (err) return res.status(400).json({ error: err.message });
         res.json({ message: "deleted" });
+    });
+});
+
+app.put('/api/banners/:id', (req, res) => {
+    const { image_url, title, subtitle, link_url } = req.body;
+    db.run("UPDATE banners SET image_url = ?, title = ?, subtitle = ?, link_url = ? WHERE id = ?", [image_url, title, subtitle, link_url, req.params.id], function (err) {
+        if (err) return res.status(400).json({ error: err.message });
+        res.json({ message: "updated", id: req.params.id });
     });
 });
 

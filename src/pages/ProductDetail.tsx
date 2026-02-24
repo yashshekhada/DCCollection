@@ -3,20 +3,24 @@ import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ShoppingBag } from "lucide-react";
+import { ChevronLeft, ShoppingBag, Check } from "lucide-react";
 import { Product, ProductVariant } from "@/types/product";
 import { getImageUrl } from "@/lib/utils";
+import { useCart } from "@/contexts/CartContext";
+import { toast } from "sonner";
 
-// Assuming sizes are consistent with what's defined in Admin
+// Size display order
 const SIZES = ["N/A", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"];
 
 const ProductDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { addToCart, openCart } = useCart();
+
     const [product, setProduct] = useState<Product | null>(null);
     const [loading, setLoading] = useState(true);
     const [selectedColor, setSelectedColor] = useState<string | null>(null);
-    const [selectedSize, setSelectedSize] = useState<string>("M");
+    const [sizeQtys, setSizeQtys] = useState<Record<string, number>>({});
     const [activeMediaIndex, setActiveMediaIndex] = useState(0);
 
     useEffect(() => {
@@ -25,8 +29,16 @@ const ProductDetail = () => {
             .then(data => {
                 setProduct(data);
                 if (data.variants && data.variants.length > 0) {
-                    setSelectedColor(data.variants[0].color_name);
-                    setSelectedSize(data.variants[0].size || "N/A");
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const colorParam = urlParams.get('color');
+
+                    let initialColor = data.variants[0].color_name;
+                    if (colorParam && data.variants.some((v: any) => v.color_name === colorParam)) {
+                        initialColor = colorParam;
+                    }
+
+                    setSelectedColor(initialColor);
+                    setSizeQtys({});
                 }
                 setLoading(false);
             })
@@ -58,19 +70,16 @@ const ProductDetail = () => {
         );
     }
 
-    // Find current variant based on color and size selection
+    // Group by color
     const availableVariantsForColor = product.variants?.filter(v => v.color_name === selectedColor) || [];
-    const currentVariant = availableVariantsForColor.find(v => v.size === selectedSize) || availableVariantsForColor[0];
 
-    // Get unique colors available
     const uniqueColors = Array.from(new Set(product.variants?.map(v => v.color_name))).map(colorName => {
         return product.variants?.find(v => v.color_name === colorName);
     }).filter(Boolean) as ProductVariant[];
 
-    // Available sizes for currently selected color
     const availableSizes = availableVariantsForColor.map(v => v.size).filter(Boolean) as string[];
 
-    // Collect all unique media for the selected color, regardless of size
+    // Media for selected color
     const allMediaForColor = availableVariantsForColor
         .flatMap(v => v.media || [])
         .filter((m, index, self) => self.findIndex(t => t.url === m.url) === index);
@@ -81,10 +90,70 @@ const ProductDetail = () => {
 
     const activeMedia = displayMedia[activeMediaIndex] || displayMedia[0];
 
-    // Calculate final price based on selected size's extra price
     const basePrice = Number(product.is_on_sale && product.sale_price ? product.sale_price : product.price);
-    const extraPrice = Number(currentVariant?.extra_price || 0);
-    const finalPrice = basePrice + extraPrice;
+
+    const getPriceForSize = (size: string) => {
+        const variant = availableVariantsForColor.find(v => v.size === size);
+        return basePrice + Number(variant?.extra_price || 0);
+    };
+
+    const adjustQty = (size: string, delta: number) => {
+        setSizeQtys(prev => {
+            const current = prev[size] || 0;
+            const next = Math.max(0, current + delta);
+            return { ...prev, [size]: next };
+        });
+    };
+
+    const totalQtySelected = Object.values(sizeQtys).reduce((a, b) => a + b, 0);
+
+    const handleAddToCart = () => {
+        if (!product) return;
+
+        const selectedVariant = uniqueColors.find(v => v.color_name === selectedColor);
+        const colorHex = selectedVariant?.color_hex || "#000000";
+        const imageUrl = displayMedia[0]?.url || product.image_url || "";
+
+        // No sizes available on product (no-variant product)
+        if (availableSizes.length === 0) {
+            addToCart({
+                productId: product.id,
+                productName: product.name,
+                designCode: product.design_code || "",
+                colorName: selectedColor || "",
+                colorHex,
+                sizes: [{ size: "N/A", qty: 1, price: basePrice }],
+                imageUrl,
+            });
+            toast.success("Added to cart!", { action: { label: "View Cart", onClick: openCart } });
+            return;
+        }
+
+        const selectedSizeEntries = availableSizes
+            .filter(size => (sizeQtys[size] || 0) > 0)
+            .map(size => ({ size, qty: sizeQtys[size], price: getPriceForSize(size) }));
+
+        if (selectedSizeEntries.length === 0) {
+            toast.error("Please add at least one size quantity");
+            return;
+        }
+
+        addToCart({
+            productId: product.id,
+            productName: product.name,
+            designCode: product.design_code || "",
+            colorName: selectedColor || "",
+            colorHex,
+            sizes: selectedSizeEntries,
+            imageUrl,
+        });
+
+        toast.success("Added to cart!", { action: { label: "View Cart", onClick: openCart } });
+        setSizeQtys({});
+    };
+
+    const hasVariants = uniqueColors.length > 0;
+    const hasSizes = availableSizes.length > 0 && !(availableSizes.length === 1 && availableSizes[0] === "N/A");
 
     return (
         <div className="min-h-screen bg-background flex flex-col">
@@ -136,8 +205,7 @@ const ProductDetail = () => {
                                     <button
                                         key={idx}
                                         onClick={() => setActiveMediaIndex(idx)}
-                                        className={`shrink-0 w-20 h-24 rounded-lg overflow-hidden border-2 transition-all ${activeMediaIndex === idx ? 'border-foreground shadow-sm' : 'border-transparent opacity-60 hover:opacity-100'
-                                            }`}
+                                        className={`shrink-0 w-20 h-24 rounded-lg overflow-hidden border-2 transition-all ${activeMediaIndex === idx ? 'border-foreground shadow-sm' : 'border-transparent opacity-60 hover:opacity-100'}`}
                                     >
                                         {m.type === 'youtube' ? (
                                             <div className="w-full h-full bg-red-50 flex items-center justify-center text-red-500">
@@ -167,12 +235,14 @@ const ProductDetail = () => {
                         <h1 className="text-3xl md:text-4xl font-heading mb-4 text-foreground">{product.name}</h1>
 
                         <div className="text-2xl mb-8 flex items-center gap-3">
-                            <span className="font-semibold text-foreground">₹{finalPrice.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
-
+                            <span className="font-semibold text-foreground">
+                                ₹{basePrice.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                            </span>
                             {product.is_on_sale && product.sale_price && (
-                                <span className="text-lg text-muted-foreground line-through">₹{(Number(product.price) + extraPrice).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                                <span className="text-lg text-muted-foreground line-through">
+                                    ₹{Number(product.price).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                                </span>
                             )}
-
                             {product.is_on_sale && product.sale_price && (
                                 <span className="text-xs font-bold bg-red-100 text-red-700 px-2 py-1 rounded uppercase tracking-wider">Sale</span>
                             )}
@@ -183,7 +253,7 @@ const ProductDetail = () => {
                         </p>
 
                         {/* Color Selection */}
-                        {uniqueColors.length > 0 && (
+                        {hasVariants && (
                             <div className="mb-6">
                                 <span className="block text-sm font-semibold uppercase tracking-wider mb-4">
                                     Color: <span className="text-muted-foreground ml-2 font-normal">{selectedColor}</span>
@@ -195,16 +265,11 @@ const ProductDetail = () => {
                                             onClick={() => {
                                                 setSelectedColor(variant.color_name);
                                                 setActiveMediaIndex(0);
-                                                // Reset size if the new color doesn't have the currently selected size
-                                                const newColorSizes = product.variants?.filter(v => v.color_name === variant.color_name).map(v => v.size);
-                                                if (newColorSizes && !newColorSizes.includes(selectedSize)) {
-                                                    setSelectedSize(newColorSizes[0] || "N/A");
-                                                }
+                                                setSizeQtys({});
                                             }}
                                             className={`group relative w-12 h-12 rounded-full border-2 transition-all flex items-center justify-center ${selectedColor === variant.color_name
                                                 ? 'border-foreground border-[3px] scale-110 shadow-md'
-                                                : 'border-transparent shadow-sm hover:scale-105'
-                                                }`}
+                                                : 'border-transparent shadow-sm hover:scale-105'}`}
                                             title={variant.color_name}
                                         >
                                             <div
@@ -217,52 +282,84 @@ const ProductDetail = () => {
                             </div>
                         )}
 
-                        {/* Size Selection */}
-                        {availableSizes.length > 0 && !(availableSizes.length === 1 && availableSizes[0] === "N/A") && (
-                            <div className="mb-10">
+                        {/* Size Quantity Steppers */}
+                        {hasSizes && (
+                            <div className="mb-8">
                                 <div className="flex justify-between items-center mb-4">
-                                    <span className="text-sm font-semibold uppercase tracking-wider">
-                                        Size: <span className="text-muted-foreground ml-2 font-normal">{selectedSize}</span>
-                                    </span>
+                                    <span className="text-sm font-semibold uppercase tracking-wider">Select Sizes & Quantity</span>
+                                    {totalQtySelected > 0 && (
+                                        <button
+                                            onClick={() => setSizeQtys({})}
+                                            className="text-xs text-muted-foreground hover:text-foreground underline"
+                                        >
+                                            Clear All
+                                        </button>
+                                    )}
                                 </div>
-                                <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
+                                <div className="space-y-3">
                                     {SIZES.map(size => {
                                         const isAvailable = availableSizes.includes(size);
-                                        const isSelected = selectedSize === size;
-
-                                        // Hide N/A if it isn't available. Hide other sizes completely if they aren't available for this color.
                                         if (!isAvailable) return null;
+                                        const qty = sizeQtys[size] || 0;
+                                        const extra = getPriceForSize(size) - basePrice;
 
                                         return (
-                                            <button
+                                            <div
                                                 key={size}
-                                                onClick={() => isAvailable && setSelectedSize(size)}
-                                                className={`py-3 rounded-md text-sm font-medium transition-all border
-                                                    ${isSelected
-                                                        ? 'bg-foreground text-background border-foreground shadow-md'
-                                                        : 'bg-transparent text-foreground border-border hover:border-foreground/50'
-                                                    }
-                                                `}
+                                                className={`flex items-center justify-between rounded-xl border px-4 py-3 transition-colors ${qty > 0
+                                                        ? 'border-foreground bg-foreground/5'
+                                                        : 'border-border bg-transparent'
+                                                    }`}
                                             >
-                                                {size}
-                                            </button>
+                                                {/* Size label */}
+                                                <div className="flex items-center gap-3">
+                                                    <span className={`font-semibold text-sm w-10 ${qty > 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
+                                                        {size}
+                                                    </span>
+                                                    {extra > 0 && (
+                                                        <span className="text-xs text-muted-foreground">+₹{extra}</span>
+                                                    )}
+                                                </div>
+
+                                                {/* - qty + stepper */}
+                                                <div className="flex items-center gap-3">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => adjustQty(size, -1)}
+                                                        disabled={qty === 0}
+                                                        className="w-8 h-8 rounded-full border border-border flex items-center justify-center text-lg leading-none transition-colors hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                                                    >
+                                                        −
+                                                    </button>
+                                                    <span className={`w-6 text-center font-semibold text-sm tabular-nums ${qty > 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
+                                                        {qty}
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => adjustQty(size, 1)}
+                                                        className="w-8 h-8 rounded-full border border-border flex items-center justify-center text-lg leading-none transition-colors hover:bg-muted"
+                                                    >
+                                                        +
+                                                    </button>
+                                                </div>
+                                            </div>
                                         );
                                     })}
                                 </div>
                             </div>
                         )}
 
-                        <Button className="w-full md:w-auto mt-auto py-6 text-base tracking-wide flex items-center justify-center disabled:opacity-50">
-                            <ShoppingBag className="w-5 h-5 mr-3" />
-                            {product.stock > 0 ? "Add to Cart" : "Out of Stock"}
+                        {/* Add to Cart */}
+                        <Button
+                            onClick={handleAddToCart}
+                            disabled={hasSizes && totalQtySelected === 0}
+                            className="w-full py-6 text-base tracking-wide flex items-center justify-center gap-3"
+                        >
+                            <ShoppingBag className="w-5 h-5" />
+                            {totalQtySelected > 0
+                                ? `Add to Cart (${totalQtySelected} pcs)`
+                                : "Add to Cart"}
                         </Button>
-
-                        {product.stock > 0 && (
-                            <p className="text-sm mt-4 text-green-600 flex items-center">
-                                <span className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></span>
-                                In Stock
-                            </p>
-                        )}
                     </div>
                 </div>
             </div>

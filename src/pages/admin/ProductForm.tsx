@@ -8,14 +8,36 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Product, ProductVariant } from "@/types/product";
-import { X, Plus, Check, ImageIcon } from "lucide-react";
+import { X, Plus, Check, ImageIcon, Video, Palette } from "lucide-react";
 import { getImageUrl } from "@/lib/utils";
 
-const SIZES = ["N/A", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"];
+const PRESET_COLORS = [
+    { name: "Red", hex: "#E53935" },
+    { name: "Pink", hex: "#E91E8C" },
+    { name: "Orange", hex: "#FF6F00" },
+    { name: "Yellow", hex: "#FDD835" },
+    { name: "Green", hex: "#43A047" },
+    { name: "Teal", hex: "#00897B" },
+    { name: "Sky Blue", hex: "#039BE5" },
+    { name: "Navy Blue", hex: "#1A237E" },
+    { name: "Purple", hex: "#8E24AA" },
+    { name: "Maroon", hex: "#880E4F" },
+    { name: "Brown", hex: "#5D4037" },
+    { name: "Beige", hex: "#D4B896" },
+    { name: "Cream", hex: "#FFF8E1" },
+    { name: "White", hex: "#FFFFFF" },
+    { name: "Grey", hex: "#9E9E9E" },
+    { name: "Black", hex: "#212121" },
+];
+
+
+interface UiMedia {
+    url: string;
+    type: 'image' | 'youtube';
+}
 
 interface UiSize {
     size: string;
-    enabled: boolean;
     extra_price: number;
 }
 
@@ -23,7 +45,7 @@ interface UiVariant {
     color_name: string;
     color_hex: string;
     sizes: UiSize[];
-    media: any[];
+    media: UiMedia[];
 }
 
 const ProductForm = () => {
@@ -37,7 +59,9 @@ const ProductForm = () => {
         description: "",
         price: 0,
         category: "",
-        stock: 0,
+        design_code: "",
+        is_on_sale: false,
+        sale_price: 0,
         image_url: "",
         variants: []
     });
@@ -74,7 +98,7 @@ const ProductForm = () => {
                             group = {
                                 color_name: v.color_name,
                                 color_hex: v.color_hex,
-                                sizes: SIZES.map(s => ({ size: s, enabled: false, extra_price: 0 })),
+                                sizes: [],
                                 media: [...(v.media || [])]
                             };
                             grouped.push(group);
@@ -88,11 +112,9 @@ const ProductForm = () => {
                                 });
                             }
                         }
-                        if (v.size) {
-                            const sizeObj = group.sizes.find(s => s.size === v.size);
-                            if (sizeObj) {
-                                sizeObj.enabled = true;
-                                sizeObj.extra_price = v.extra_price || 0;
+                        if (v.size && v.size !== 'N/A') {
+                            if (!group.sizes.some(s => s.size === v.size)) {
+                                group.sizes.push({ size: v.size, extra_price: v.extra_price || 0 });
                             }
                         }
                     });
@@ -122,7 +144,7 @@ const ProductForm = () => {
         const { name, value } = e.target;
         setFormData((prev) => ({
             ...prev,
-            [name]: name === "price" || name === "stock" ? parseFloat(value) : value,
+            [name]: name === "price" ? parseFloat(value) : value,
         }));
     };
 
@@ -173,14 +195,13 @@ const ProductForm = () => {
             const method = isEditing ? "PUT" : "POST";
 
             const payloadVariants = uiVariants.flatMap(uiVar => {
-                const activeSizes = uiVar.sizes.filter(s => s.enabled);
-                if (activeSizes.length === 0) {
+                if (uiVar.sizes.length === 0) {
                     return [{ color_name: uiVar.color_name, color_hex: uiVar.color_hex, size: 'N/A', extra_price: 0, media: uiVar.media }];
                 }
-                return activeSizes.map(sizeObj => ({
+                return uiVar.sizes.filter(s => s.size.trim() !== '').map(sizeObj => ({
                     color_name: uiVar.color_name,
                     color_hex: uiVar.color_hex,
-                    size: sizeObj.size,
+                    size: sizeObj.size.trim(),
                     extra_price: sizeObj.extra_price,
                     media: uiVar.media
                 }));
@@ -217,7 +238,7 @@ const ProductForm = () => {
             {
                 color_name: "",
                 color_hex: "#000000",
-                sizes: SIZES.map(s => ({ size: s, enabled: false, extra_price: 0 })),
+                sizes: [],
                 media: []
             }
         ]);
@@ -301,6 +322,29 @@ const ProductForm = () => {
         }
     };
 
+    const handleAddYoutubeLink = (index: number) => {
+        const url = prompt("Enter YouTube Video URL:");
+        if (!url) return;
+
+        // Basic validation for YouTube URL
+        if (!url.includes("youtube.com/") && !url.includes("youtu.be/")) {
+            toast.error("Please enter a valid YouTube URL");
+            return;
+        }
+
+        setUiVariants(prev => {
+            const newVariants = [...prev];
+            const targetVariant = { ...newVariants[index] };
+            const currentMedia = [...targetVariant.media];
+
+            currentMedia.push({ url, type: 'youtube' });
+            targetVariant.media = currentMedia;
+            newVariants[index] = targetVariant;
+
+            return newVariants;
+        });
+    };
+
     const removeVariantImage = (variantIndex: number, mediaIndex: number) => {
         setUiVariants(prev => {
             const newVariants = [...prev];
@@ -349,9 +393,9 @@ const ProductForm = () => {
                             />
                         </div>
 
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="price">Base Price</Label>
+                                <Label htmlFor="price">Base Price (₹)</Label>
                                 <Input
                                     id="price"
                                     name="price"
@@ -362,17 +406,18 @@ const ProductForm = () => {
                                     required
                                 />
                             </div>
+
                             <div className="space-y-2">
-                                <Label htmlFor="stock">Base Stock</Label>
+                                <Label htmlFor="design_code">Design Code</Label>
                                 <Input
-                                    id="stock"
-                                    name="stock"
-                                    type="number"
-                                    value={formData.stock}
+                                    id="design_code"
+                                    name="design_code"
+                                    placeholder="e.g. DC-001"
+                                    value={formData.design_code || ""}
                                     onChange={handleChange}
-                                    required
                                 />
                             </div>
+
                             <div className="space-y-2 md:col-span-2">
                                 <Label htmlFor="category">Category</Label>
                                 {isCreatingCategory ? (
@@ -440,31 +485,63 @@ const ProductForm = () => {
                                     <Trash2 className="w-4 h-4" />
                                 </Button>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label>Color Name</Label>
-                                        <Input
-                                            placeholder="e.g. Red, Blue"
-                                            value={variant.color_name}
-                                            onChange={(e) => handleVariantChange(index, 'color_name', e.target.value)}
-                                            required
+                                <div className="space-y-2">
+                                    <Label>Color</Label>
+                                    <div className="flex items-center gap-3">
+                                        {/* Color preview swatch */}
+                                        <div
+                                            className="w-10 h-10 rounded-lg border border-border shrink-0"
+                                            style={{ backgroundColor: variant.color_hex || '#ccc' }}
                                         />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Color Hex</Label>
-                                        <div className="flex gap-2">
-                                            <Input
-                                                type="color"
-                                                value={variant.color_hex}
-                                                onChange={(e) => handleVariantChange(index, 'color_hex', e.target.value)}
-                                                className="w-12 p-1 h-10"
-                                            />
-                                            <Input
-                                                value={variant.color_hex}
-                                                onChange={(e) => handleVariantChange(index, 'color_hex', e.target.value)}
-                                                className="flex-1"
-                                                required
-                                            />
+                                        {/* Popup picker button */}
+                                        <div className="relative flex-1">
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                className="w-full justify-start gap-2"
+                                                onClick={() => handleVariantChange(index, '_colorPickerOpen' as any, !variant['_colorPickerOpen' as any])}
+                                            >
+                                                <Palette className="w-4 h-4" />
+                                                {variant.color_name || 'Pick a color'}
+                                            </Button>
+
+                                            {variant['_colorPickerOpen' as any] && (
+                                                <div className="absolute top-full left-0 z-50 mt-1 p-3 bg-popover border border-border rounded-xl shadow-xl">
+                                                    <div className="grid grid-cols-8 gap-2 mb-3">
+                                                        {PRESET_COLORS.map(c => (
+                                                            <button
+                                                                key={c.hex}
+                                                                type="button"
+                                                                title={c.name}
+                                                                className="w-8 h-8 rounded-full border-2 transition-all hover:scale-110 focus:outline-none"
+                                                                style={{
+                                                                    backgroundColor: c.hex,
+                                                                    borderColor: variant.color_hex === c.hex ? '#000' : 'transparent',
+                                                                    boxShadow: variant.color_hex === c.hex ? '0 0 0 2px white, 0 0 0 4px #000' : 'none'
+                                                                }}
+                                                                onClick={() => {
+                                                                    setUiVariants(prev => {
+                                                                        const next = [...prev];
+                                                                        next[index] = { ...next[index], color_name: c.name, color_hex: c.hex, ['_colorPickerOpen' as any]: false };
+                                                                        return next;
+                                                                    });
+                                                                }}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                    <p className="text-xs text-muted-foreground mb-1">Rename shade (optional):</p>
+                                                    <Input
+                                                        placeholder="e.g. Light Green, Dark Red"
+                                                        value={variant.color_name}
+                                                        onChange={(e) => handleVariantChange(index, 'color_name', e.target.value)}
+                                                        className="h-8 text-sm"
+                                                        onClick={e => e.stopPropagation()}
+                                                    />
+                                                    <Button type="button" size="sm" className="mt-2 w-full" onClick={() => handleVariantChange(index, '_colorPickerOpen' as any, false)}>
+                                                        Done
+                                                    </Button>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -511,11 +588,20 @@ const ProductForm = () => {
                                     <div className="flex flex-wrap gap-4 items-center mt-2">
                                         {variant.media?.map((m, mIndex) => (
                                             <div key={mIndex} className="relative group w-20 h-20 rounded-md border overflow-hidden">
-                                                <img
-                                                    src={getImageUrl(m.url)}
-                                                    alt="Variant Image"
-                                                    className="w-full h-full object-cover"
-                                                />
+                                                {m.type === 'youtube' ? (
+                                                    <div className="w-full h-full bg-red-50 flex items-center justify-center text-red-500 relative">
+                                                        <Video className="w-8 h-8" />
+                                                        <div className="absolute inset-x-0 bottom-0 bg-black/60 text-white text-[8px] truncate px-1 py-0.5 text-center">
+                                                            {m.url}
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <img
+                                                        src={getImageUrl(m.url)}
+                                                        alt="Variant Image"
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                )}
                                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                                     <Button
                                                         type="button"
@@ -530,16 +616,25 @@ const ProductForm = () => {
                                             </div>
                                         ))}
 
-                                        <div className="relative w-20 h-20 rounded-md border border-dashed flex flex-col items-center justify-center text-muted-foreground hover:bg-muted/50 transition-colors cursor-pointer">
-                                            <ImageIcon className="w-6 h-6 mb-1" />
-                                            <span className="text-[10px]">Upload</span>
-                                            <Input
-                                                type="file"
-                                                accept="image/*"
-                                                className="opacity-0 absolute inset-0 w-full h-full cursor-pointer z-10"
-                                                onChange={(e) => handleVariantImageUpload(index, e)}
-                                                disabled={uploading}
-                                            />
+                                        <div className="flex gap-4">
+                                            <div className="relative w-20 h-20 rounded-md border border-dashed flex flex-col items-center justify-center text-muted-foreground hover:bg-muted/50 transition-colors cursor-pointer">
+                                                <ImageIcon className="w-6 h-6 mb-1" />
+                                                <span className="text-[10px]">Image</span>
+                                                <Input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    className="opacity-0 absolute inset-0 w-full h-full cursor-pointer z-10"
+                                                    onChange={(e) => handleVariantImageUpload(index, e)}
+                                                    disabled={uploading}
+                                                />
+                                            </div>
+                                            <div
+                                                className="relative w-20 h-20 rounded-md border border-dashed flex flex-col items-center justify-center text-muted-foreground hover:bg-muted/50 transition-colors cursor-pointer"
+                                                onClick={() => handleAddYoutubeLink(index)}
+                                            >
+                                                <Video className="w-6 h-6 mb-1" />
+                                                <span className="text-[10px]">YouTube</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

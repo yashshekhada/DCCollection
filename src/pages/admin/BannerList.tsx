@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Trash2, Plus, Image as ImageIcon } from "lucide-react";
+import { Trash2, Plus, Image as ImageIcon, Pencil, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getImageUrl } from "@/lib/utils";
 
@@ -24,6 +24,7 @@ const BannerList = () => {
     const [newLink, setNewLink] = useState("/shop");
     const [newImage, setNewImage] = useState<string | null>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
+    const [editingBannerId, setEditingBannerId] = useState<number | null>(null);
 
     useEffect(() => {
         fetchBanners();
@@ -31,7 +32,7 @@ const BannerList = () => {
 
     const fetchBanners = async () => {
         try {
-            const res = await fetch("https://thedeepcollection.com/api/banners");
+            const res = await fetch("/api/banners");
             const data = await res.json();
             setBanners(data);
         } catch (error) {
@@ -50,7 +51,7 @@ const BannerList = () => {
         formData.append("file", file);
 
         try {
-            const res = await fetch("https://thedeepcollection.com/api/upload", {
+            const res = await fetch("/api/upload", {
                 method: "POST",
                 body: formData,
             });
@@ -66,7 +67,25 @@ const BannerList = () => {
         }
     };
 
-    const handleCreate = async (e: React.FormEvent) => {
+    
+    const handleEdit = (banner: Banner) => {
+        setEditingBannerId(banner.id);
+        setNewTitle(banner.title);
+        setNewSubtitle(banner.subtitle || "");
+        setNewLink(banner.link_url || "/shop");
+        setNewImage(banner.image_url);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
+    const handleCancelEdit = () => {
+        setEditingBannerId(null);
+        setNewTitle("");
+        setNewSubtitle("");
+        setNewLink("/shop");
+        setNewImage(null);
+    };
+
+    const handleCreateOrUpdate = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newTitle.trim() || !newImage) {
             toast.error("Banner image and title are required");
@@ -74,8 +93,14 @@ const BannerList = () => {
         }
 
         try {
-            const res = await fetch("https://thedeepcollection.com/api/banners", {
-                method: "POST",
+            const url = editingBannerId 
+                ? `/api/banners/${editingBannerId}`
+                : "/api/banners";
+            
+            const method = editingBannerId ? "PUT" : "POST";
+
+            const res = await fetch(url, {
+                method,
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     title: newTitle.trim(),
@@ -87,25 +112,23 @@ const BannerList = () => {
 
             if (!res.ok) {
                 const data = await res.json();
-                throw new Error(data.error || "Failed to create banner");
+                throw new Error(data.error || `Failed to ${editingBannerId ? 'update' : 'create'} banner`);
             }
 
-            toast.success("Banner created successfully");
-            setNewTitle("");
-            setNewSubtitle("");
-            setNewLink("/shop");
-            setNewImage(null);
+            toast.success(`Banner ${editingBannerId ? 'updated' : 'created'} successfully`);
+            handleCancelEdit();
             fetchBanners();
         } catch (error: any) {
             toast.error(error.message);
         }
     };
 
+
     const handleDelete = async (id: number) => {
         if (!window.confirm("Are you sure you want to delete this banner?")) return;
 
         try {
-            const res = await fetch(`https://thedeepcollection.com/api/banners/${id}`, {
+            const res = await fetch(`/api/banners/${id}`, {
                 method: "DELETE",
             });
 
@@ -128,10 +151,10 @@ const BannerList = () => {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Add New Banner</CardTitle>
+                    <CardTitle>{editingBannerId ? "Edit Banner" : "Add New Banner"}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <form onSubmit={handleCreate} className="space-y-4">
+                    <form onSubmit={handleCreateOrUpdate} className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Main Title</label>
@@ -183,10 +206,19 @@ const BannerList = () => {
                             </div>
                         </div>
 
-                        <Button type="submit" className="w-full sm:w-auto">
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add Banner
-                        </Button>
+                        
+                        <div className="flex gap-2">
+                            <Button type="submit" className="w-full sm:w-auto">
+                                {editingBannerId ? <Pencil className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
+                                {editingBannerId ? "Update Banner" : "Add Banner"}
+                            </Button>
+                            {editingBannerId && (
+                                <Button type="button" variant="outline" onClick={handleCancelEdit}>
+                                    <X className="mr-2 h-4 w-4" />
+                                    Cancel
+                                </Button>
+                            )}
+                        </div>
                     </form>
                 </CardContent>
             </Card>
@@ -215,6 +247,14 @@ const BannerList = () => {
                                     <TableCell className="text-muted-foreground">{banner.subtitle}</TableCell>
                                     <TableCell className="text-muted-foreground font-mono text-xs">{banner.link_url}</TableCell>
                                     <TableCell className="text-right">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleEdit(banner)}
+                                            className="text-blue-500 hover:text-blue-700 mr-2"
+                                        >
+                                            <Pencil className="h-4 w-4" />
+                                        </Button>
                                         <Button
                                             variant="ghost"
                                             size="sm"

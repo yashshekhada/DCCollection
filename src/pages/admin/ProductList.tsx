@@ -74,7 +74,6 @@ const ProductList = () => {
                             <TableHead>Name</TableHead>
                             <TableHead>Category</TableHead>
                             <TableHead>Price</TableHead>
-                            <TableHead>Stock</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -93,7 +92,6 @@ const ProductList = () => {
                                 <TableCell className="font-medium">{product.name}</TableCell>
                                 <TableCell>{product.category}</TableCell>
                                 <TableCell>${Number(product.price).toFixed(2)}</TableCell>
-                                <TableCell>{product.stock}</TableCell>
                                 <TableCell className="text-right">
                                     <div className="flex justify-end gap-2">
                                         <Button variant="ghost" size="icon" asChild>
@@ -110,7 +108,7 @@ const ProductList = () => {
                         ))}
                         {products.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={6} className="text-center py-10">
+                                <TableCell colSpan={5} className="text-center py-10">
                                     No products found.
                                 </TableCell>
                             </TableRow>
