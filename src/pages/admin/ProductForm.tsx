@@ -13,6 +13,19 @@ import { getImageUrl } from "@/lib/utils";
 
 const SIZES = ["N/A", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"];
 
+interface UiSize {
+    size: string;
+    enabled: boolean;
+    extra_price: number;
+}
+
+interface UiVariant {
+    color_name: string;
+    color_hex: string;
+    sizes: UiSize[];
+    media: any[];
+}
+
 const ProductForm = () => {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -31,6 +44,7 @@ const ProductForm = () => {
 
     const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
     const [uploading, setUploading] = useState(false);
+    const [uiVariants, setUiVariants] = useState<UiVariant[]>([]);
 
     // Category Creation State
     const [isCreatingCategory, setIsCreatingCategory] = useState(false);
@@ -50,6 +64,31 @@ const ProductForm = () => {
             if (res.ok) {
                 const data = await res.json();
                 setFormData(data);
+
+                // Group variants by color for the UI
+                if (data.variants && data.variants.length > 0) {
+                    const grouped: UiVariant[] = [];
+                    data.variants.forEach((v: any) => {
+                        let group = grouped.find(g => g.color_name === v.color_name);
+                        if (!group) {
+                            group = {
+                                color_name: v.color_name,
+                                color_hex: v.color_hex,
+                                sizes: SIZES.map(s => ({ size: s, enabled: false, extra_price: 0 })),
+                                media: v.media || []
+                            };
+                            grouped.push(group);
+                        }
+                        if (v.size) {
+                            const sizeObj = group.sizes.find(s => s.size === v.size);
+                            if (sizeObj) {
+                                sizeObj.enabled = true;
+                                sizeObj.extra_price = v.extra_price || 0;
+                            }
+                        }
+                    });
+                    setUiVariants(grouped);
+                }
             }
         } catch (error) {
             console.error(error);
@@ -124,13 +163,23 @@ const ProductForm = () => {
 
             const method = isEditing ? "PUT" : "POST";
 
+            const payloadVariants = uiVariants.flatMap(uiVar => {
+                const activeSizes = uiVar.sizes.filter(s => s.enabled);
+                if (activeSizes.length === 0) {
+                    return [{ color_name: uiVar.color_name, color_hex: uiVar.color_hex, size: 'N/A', extra_price: 0, media: uiVar.media }];
+                }
+                return activeSizes.map(sizeObj => ({
+                    color_name: uiVar.color_name,
+                    color_hex: uiVar.color_hex,
+                    size: sizeObj.size,
+                    extra_price: sizeObj.extra_price,
+                    media: uiVar.media
+                }));
+            });
+
             const payload = {
                 ...formData,
-                variants: formData.variants?.map(v => ({
-                    ...v,
-                    size: v.size || "N/A",
-                    extra_price: v.extra_price || 0
-                }))
+                variants: payloadVariants
             };
 
             const response = await fetch(url, {
@@ -154,31 +203,46 @@ const ProductForm = () => {
     // --- Variants Logic ---
 
     const addVariant = () => {
-        setFormData(prev => ({
+        setUiVariants(prev => [
             ...prev,
-            variants: [...(prev.variants || []), {
+            {
                 color_name: "",
                 color_hex: "#000000",
-                size: "N/A",
-                extra_price: 0,
+                sizes: SIZES.map(s => ({ size: s, enabled: false, extra_price: 0 })),
                 media: []
-            }]
-        }));
+            }
+        ]);
     };
 
     const removeVariant = (index: number) => {
-        setFormData(prev => {
-            const newVariants = [...(prev.variants || [])];
+        setUiVariants(prev => {
+            const newVariants = [...prev];
             newVariants.splice(index, 1);
-            return { ...prev, variants: newVariants };
+            return newVariants;
         });
     }
 
-    const handleVariantChange = (index: number, field: keyof ProductVariant, value: any) => {
-        setFormData(prev => {
-            const newVariants = [...(prev.variants || [])];
+    const handleVariantChange = (index: number, field: keyof UiVariant, value: any) => {
+        setUiVariants(prev => {
+            const newVariants = [...prev];
             newVariants[index] = { ...newVariants[index], [field]: value };
-            return { ...prev, variants: newVariants };
+            return newVariants;
+        });
+    };
+
+    const handleSizeToggle = (variantIndex: number, sizeIndex: number, enabled: boolean) => {
+        setUiVariants(prev => {
+            const newVariants = [...prev];
+            newVariants[variantIndex].sizes[sizeIndex].enabled = enabled;
+            return newVariants;
+        });
+    };
+
+    const handleExtraPriceChange = (variantIndex: number, sizeIndex: number, price: number) => {
+        setUiVariants(prev => {
+            const newVariants = [...prev];
+            newVariants[variantIndex].sizes[sizeIndex].extra_price = price;
+            return newVariants;
         });
     };
 
@@ -199,13 +263,12 @@ const ProductForm = () => {
             if (response.ok) {
                 const data = await response.json();
 
-                setFormData(prev => {
-                    const newVariants = [...(prev.variants || [])];
-                    const updatedVariant = { ...newVariants[index] };
-                    const currentMedia = updatedVariant.media || [];
-                    updatedVariant.media = [...currentMedia, { url: data.url, type: 'image' }];
-                    newVariants[index] = updatedVariant;
-                    return { ...prev, variants: newVariants };
+                setUiVariants(prev => {
+                    const newVariants = [...prev];
+                    const currentMedia = [...newVariants[index].media];
+                    currentMedia.push({ url: data.url, type: 'image' });
+                    newVariants[index].media = currentMedia;
+                    return newVariants;
                 });
 
                 toast.success("Image uploaded successfully");
@@ -223,12 +286,12 @@ const ProductForm = () => {
     };
 
     const removeVariantImage = (variantIndex: number, mediaIndex: number) => {
-        setFormData(prev => {
-            const newVariants = [...(prev.variants || [])];
-            const currentMedia = [...(newVariants[variantIndex].media || [])];
+        setUiVariants(prev => {
+            const newVariants = [...prev];
+            const currentMedia = [...newVariants[variantIndex].media];
             currentMedia.splice(mediaIndex, 1);
             newVariants[variantIndex].media = currentMedia;
-            return { ...prev, variants: newVariants };
+            return newVariants;
         });
     }
 
@@ -339,13 +402,13 @@ const ProductForm = () => {
                         </Button>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        {formData.variants?.length === 0 && (
+                        {uiVariants.length === 0 && (
                             <div className="text-center text-muted-foreground py-4 border rounded-md bg-muted/20">
                                 No variants added. The product will be sold without color/size options.
                             </div>
                         )}
 
-                        {formData.variants?.map((variant, index) => (
+                        {uiVariants.map((variant, index) => (
                             <div key={index} className="p-4 border rounded-md space-y-4 relative bg-card">
                                 <Button
                                     type="button"
@@ -357,7 +420,7 @@ const ProductForm = () => {
                                     <Trash2 className="w-4 h-4" />
                                 </Button>
 
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label>Color Name</Label>
                                         <Input
@@ -384,29 +447,37 @@ const ProductForm = () => {
                                             />
                                         </div>
                                     </div>
-                                    <div className="space-y-2">
-                                        <Label>Size</Label>
-                                        <Select
-                                            value={variant.size}
-                                            onValueChange={(val) => handleVariantChange(index, 'size', val)}
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {SIZES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Extra Price (+)</Label>
-                                        <Input
-                                            type="number"
-                                            step="0.01"
-                                            placeholder="0.00"
-                                            value={variant.extra_price}
-                                            onChange={(e) => handleVariantChange(index, 'extra_price', parseFloat(e.target.value) || 0)}
-                                        />
+                                </div>
+
+                                <div className="space-y-3 pt-2 border-t mt-4">
+                                    <Label>Available Sizes & Extra Pricing</Label>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                        {variant.sizes.map((sizeObj, sizeIndex) => (
+                                            <div key={sizeIndex} className={`flex flex-col gap-2 p-3 border rounded-md transition-colors ${sizeObj.enabled ? 'bg-secondary/20 border-primary/30' : 'bg-muted/10 opacity-70 border-dashed'}`}>
+                                                <label className="flex items-center gap-2 cursor-pointer font-medium text-sm">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={sizeObj.enabled}
+                                                        onChange={(e) => handleSizeToggle(index, sizeIndex, e.target.checked)}
+                                                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                                    />
+                                                    Size {sizeObj.size}
+                                                </label>
+                                                {sizeObj.enabled && (
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className="text-xs text-muted-foreground shrink-0">+₹</span>
+                                                        <Input
+                                                            type="number"
+                                                            step="0.01"
+                                                            className="h-8 text-sm px-2"
+                                                            placeholder="0.00"
+                                                            value={sizeObj.extra_price}
+                                                            onChange={(e) => handleExtraPriceChange(index, sizeIndex, parseFloat(e.target.value) || 0)}
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
 
